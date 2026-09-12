@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Buyer, Seller } from '../types/market';
 import type { TradeResult } from '../state/useMarketSession';
+import { validateTrade } from '../engine/marketEngine';
 import { fmtCOP } from '../utils/format';
 
 interface TradeTicketProps {
@@ -58,6 +59,17 @@ export default function TradeTicket({ buyers, sellers, onExecute, onClose, resul
         {result && (
           <div className={`ticket-msg ${result.success ? 'success' : 'error'}`}>
             {result.success ? '✓ ' : '✗ '}{result.message}
+            {!result.success && (() => {
+              const b = buyers.find((x) => x.id === buyerId);
+              const s = sellers.find((x) => x.id === sellerId);
+              if (b && s) {
+                const v = validateTrade(b, s, price);
+                if (v.minPrice != null && v.maxPrice != null) {
+                  return <div style={{ marginTop: '6px', fontSize: '12px' }}>Debe cumplirse {fmtCOP(v.minPrice)} ≤ precio ≤ {fmtCOP(v.maxPrice)}</div>;
+                }
+              }
+              return null;
+            })()}
           </div>
         )}
         {result?.trade && (

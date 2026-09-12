@@ -24,7 +24,7 @@ export default function App() {
       <div className="app-body">
         <Sidebar activeView={view} onNavigate={setView} />
         <main className="main-content">
-          {view === 'setup' && <MarketSetup market={market} />}
+          {view === 'setup' && <MarketSetup market={market} onStart={() => setView('floor')} />}
           {view === 'floor' && <TradingFloor market={market} />}
           {view === 'news' && <BreakingNews market={market} />}
           {view === 'reveal' && <MarketReveal market={market} />}

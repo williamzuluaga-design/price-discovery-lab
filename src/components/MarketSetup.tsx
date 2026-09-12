@@ -7,7 +7,7 @@ type Market = ReturnType<typeof useMarketSession>;
 
 const ROUND_MODES: RoundMode[] = ['Dark Market', 'Public Tape', 'Order Book', 'Information Shock'];
 
-export default function MarketSetup({ market }: { market: Market }) {
+export default function MarketSetup({ market, onStart }: { market: Market; onStart: () => void }) {
   const { session, configure, start, reset, newSession } = market;
   const [roundSeconds, setRoundSeconds] = useState(session.roundSeconds);
   const [mode, setMode] = useState<RoundMode>(session.mode);
@@ -60,7 +60,7 @@ export default function MarketSetup({ market }: { market: Market }) {
           </label>
           <button
             className="btn btn-cta"
-            onClick={() => { configure(roundSeconds, mode); start(); }}
+            onClick={() => { configure(roundSeconds, mode); start(); onStart(); }}
           >
             START MARKET
           </button>
