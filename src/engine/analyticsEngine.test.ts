@@ -1,0 +1,136 @@
+import { describe, it, expect } from 'vitest';
+import {
+  efficientQuantity,
+  maxPossibleSurplus,
+  competitivePriceRange,
+  marketEfficiency,
+  buildRevealData,
+  exportTradesToCSV,
+} from './analyticsEngine';
+import { DEFAULT_BUYERS, DEFAULT_SELLERS } from '../types/market';
+import type { Buyer, Seller, Trade } from '../types/market';
+
+describe('efficientQuantity', () => {
+  it('returns 6 for default data (B06=27000 >= S06=27000, B07=26500 < S07=28500)', () => {
+    expect(efficientQuantity(DEFAULT_BUYERS, DEFAULT_SELLERS)).toBe(6);
+  });
+
+  it('returns 0 when no buyer values exceed seller values', () => {
+    const buyers: Buyer[] = [{ id: 'B1', value: 100 }];
+    const sellers: Seller[] = [{ id: 'S1', value: 200 }];
+    expect(efficientQuantity(buyers, sellers)).toBe(0);
+  });
+
+  it('returns full count when all buyers exceed all sellers', () => {
+    const buyers: Buyer[] = [{ id: 'B1', value: 300 }, { id: 'B2', value: 200 }];
+    const sellers: Seller[] = [{ id: 'S1', value: 100 }, { id: 'S2', value: 50 }];
+    expect(efficientQuantity(buyers, sellers)).toBe(2);
+  });
+});
+
+describe('maxPossibleSurplus', () => {
+  it('matches manual calculation for default data', () => {
+    // Sorted buyers desc: 30000, 29500, 29000, 28400, 27800, 27000, 26500, 25000
+    // Sorted sellers asc: 23000, 24000, 24800, 25500, 26200, 27000, 28500, 30000
+    // Q=6: surpluses = 7000+5500+4200+2900+1600+0 = 21200
+    expect(maxPossibleSurplus(DEFAULT_BUYERS, DEFAULT_SELLERS)).toBe(21200);
+  });
+
+  it('returns 0 when no efficient trades possible', () => {
+    const buyers: Buyer[] = [{ id: 'B1', value: 100 }];
+    const sellers: Seller[] = [{ id: 'S1', value: 200 }];
+    expect(maxPossibleSurplus(buyers, sellers)).toBe(0);
+  });
+});
+
+describe('competitivePriceRange', () => {
+  it('returns a valid range for default data', () => {
+    const range = competitivePriceRange(DEFAULT_BUYERS, DEFAULT_SELLERS);
+    expect(range).not.toBeNull();
+    if (range) {
+      expect(range.low).toBeLessThanOrEqual(range.high);
+      // Marginal buyer (6th) = 27000, marginal seller (6th) = 27000
+      // Next buyer (7th) = 26500, next seller (7th) = 28500
+      // low = max(27000, 26500) = 27000
+      // high = min(27000, 28500) = 27000
+      expect(range.low).toBe(27000);
+      expect(range.high).toBe(27000);
+    }
+  });
+
+  it('returns null when Q=0', () => {
+    const buyers: Buyer[] = [{ id: 'B1', value: 100 }];
+    const sellers: Seller[] = [{ id: 'S1', value: 200 }];
+    expect(competitivePriceRange(buyers, sellers)).toBeNull();
+  });
+});
+
+describe('marketEfficiency', () => {
+  it('returns null when max surplus is 0', () => {
+    const buyers: Buyer[] = [{ id: 'B1', value: 100 }];
+    const sellers: Seller[] = [{ id: 'S1', value: 200 }];
+    expect(marketEfficiency(buyers, sellers, [])).toBeNull();
+  });
+
+  it('returns 100 when all efficient surplus is realized', () => {
+    // Single buyer/seller with one trade at the efficient level
+    const buyers: Buyer[] = [{ id: 'B1', value: 30000 }];
+    const sellers: Seller[] = [{ id: 'S1', value: 23000 }];
+    const trades: Trade[] = [{
+      n: 1, timestamp: '10:00', buyerId: 'B1', sellerId: 'S1',
+      price: 26500, buyerValue: 30000, sellerValue: 23000,
+      buyerSurplus: 3500, sellerSurplus: 3500, totalSurplus: 7000,
+    }];
+    expect(marketEfficiency(buyers, sellers, trades)).toBeCloseTo(100);
+  });
+
+  it('returns partial efficiency for partial realization', () => {
+    const buyers: Buyer[] = [{ id: 'B1', value: 30000 }, { id: 'B2', value: 28000 }];
+    const sellers: Seller[] = [{ id: 'S1', value: 23000 }, { id: 'S2', value: 25000 }];
+    // max surplus = 7000 + 3000 = 10000
+    // one trade with surplus 7000 -> 70%
+    const trades: Trade[] = [{
+      n: 1, timestamp: '10:00', buyerId: 'B1', sellerId: 'S1',
+      price: 26500, buyerValue: 30000, sellerValue: 23000,
+      buyerSurplus: 3500, sellerSurplus: 3500, totalSurplus: 7000,
+    }];
+    expect(marketEfficiency(buyers, sellers, trades)).toBeCloseTo(70, 0);
+  });
+});
+
+describe('buildRevealData', () => {
+  it('produces complete reveal data for default data with no trades', () => {
+    const reveal = buildRevealData(DEFAULT_BUYERS, DEFAULT_SELLERS, []);
+    expect(reveal.efficientQuantity).toBe(6);
+    expect(reveal.maxSurplus).toBe(21200);
+    expect(reveal.realizedSurplus).toBe(0);
+    expect(reveal.marketEfficiency).toBeCloseTo(0);
+    expect(reveal.demandSchedule).toHaveLength(8);
+    expect(reveal.supplySchedule).toHaveLength(8);
+    // Demand sorted descending
+    expect(reveal.demandSchedule[0].value).toBe(30000);
+    expect(reveal.demandSchedule[7].value).toBe(25000);
+    // Supply sorted ascending
+    expect(reveal.supplySchedule[0].value).toBe(23000);
+    expect(reveal.supplySchedule[7].value).toBe(30000);
+  });
+});
+
+describe('exportTradesToCSV', () => {
+  it('produces a valid CSV with correct headers', () => {
+    const trades: Trade[] = [{
+      n: 1, timestamp: '10:00:00', buyerId: 'B01', sellerId: 'S01',
+      price: 26500, buyerValue: 30000, sellerValue: 23000,
+      buyerSurplus: 3500, sellerSurplus: 3500, totalSurplus: 7000,
+    }];
+    const csv = exportTradesToCSV('sess-1', 1, trades);
+    const lines = csv.split('\n');
+    expect(lines[0]).toBe('session_id,round,timestamp,buyer_id,seller_id,buyer_value,seller_value,trade_price,buyer_surplus,seller_surplus,total_surplus');
+    expect(lines[1]).toBe('sess-1,1,10:00:00,B01,S01,30000,23000,26500,3500,3500,7000');
+  });
+
+  it('produces only header for empty trades', () => {
+    const csv = exportTradesToCSV('sess-1', 1, []);
+    expect(csv).toBe('session_id,round,timestamp,buyer_id,seller_id,buyer_value,seller_value,trade_price,buyer_surplus,seller_surplus,total_surplus');
+  });
+});
