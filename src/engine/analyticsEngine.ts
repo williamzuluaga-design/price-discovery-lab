@@ -1,5 +1,5 @@
 import type { Buyer, Seller, RevealData, Trade } from '../types/market';
-import { computeRealizedSurplus } from './marketEngine';
+import { computeRealizedSurplus, tradesForRound } from './marketEngine';
 
 export function efficientQuantity(buyers: Buyer[], sellers: Seller[]): number {
   const sortedBuyers = [...buyers].sort((a, b) => b.value - a.value);
@@ -98,11 +98,17 @@ export function buildRevealData(
   };
 }
 
-export function exportTradesToCSV(
-  sessionId: string,
-  round: number,
-  trades: Trade[],
-): string {
+export function buildCurrentRoundRevealData(
+  buyers: Buyer[],
+  sellers: Seller[],
+  allTrades: Trade[],
+  currentRound: number,
+): RevealData {
+  const currentTrades = tradesForRound(allTrades, currentRound);
+  return buildRevealData(buyers, sellers, currentTrades);
+}
+
+export function exportTradesToCSV(trades: Trade[]): string {
   const cols = [
     'session_id',
     'round',
@@ -119,8 +125,8 @@ export function exportTradesToCSV(
   const header = cols.join(',');
   const rows = trades.map((t) =>
     [
-      sessionId,
-      round,
+      t.sessionId,
+      t.round,
       t.timestamp,
       t.buyerId,
       t.sellerId,

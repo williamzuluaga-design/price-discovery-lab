@@ -10,7 +10,10 @@ export default function BreakingNews({ market }: { market: Market }) {
   const [selected, setSelected] = useState<NewsEventType>('ratecut');
   const [released, setReleased] = useState<string | null>(null);
 
+  const marketOpen = session.phase === 'open';
+
   const handleRelease = () => {
+    if (marketOpen) return;
     releaseNews(selected);
     setReleased(NEWS_SHOCKS[selected].label);
   };
@@ -30,8 +33,20 @@ export default function BreakingNews({ market }: { market: Market }) {
               ))}
             </select>
           </label>
-          <button className="btn btn-cta" onClick={handleRelease}>RELEASE NEWS</button>
+          <button
+            className="btn btn-cta"
+            onClick={handleRelease}
+            disabled={marketOpen}
+            style={marketOpen ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+          >
+            RELEASE NEWS
+          </button>
         </div>
+        {marketOpen && (
+          <div className="notice" style={{ marginTop: '12px' }}>
+            <b>El mercado está abierto.</b> Los eventos informativos solo pueden aplicarse entre rondas, no durante una ronda activa.
+          </div>
+        )}
       </div>
 
       {released && (

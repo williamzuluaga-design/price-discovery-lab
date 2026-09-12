@@ -4,7 +4,15 @@ export function validateTrade(
   buyer: Buyer,
   seller: Seller,
   price: number,
+  tradedBuyerIds: string[] = [],
+  tradedSellerIds: string[] = [],
 ): TradeValidationResult {
+  if (tradedBuyerIds.includes(buyer.id)) {
+    return { valid: false, reason: `El comprador ${buyer.id} ya negoció en esta ronda` };
+  }
+  if (tradedSellerIds.includes(seller.id)) {
+    return { valid: false, reason: `El vendedor ${seller.id} ya negoció en esta ronda` };
+  }
   if (!Number.isFinite(price)) {
     return { valid: false, reason: 'Precio inválido' };
   }
@@ -48,9 +56,13 @@ export function executeTrade(
   seller: Seller,
   price: number,
   tradeNumber: number,
+  sessionId: string,
+  round: number,
 ): Trade {
   return {
     n: tradeNumber,
+    sessionId,
+    round,
     timestamp: new Date().toLocaleTimeString('es-CO', { hour12: false }),
     buyerId: buyer.id,
     sellerId: seller.id,
@@ -86,4 +98,8 @@ export function computeLow(trades: Trade[]): number | null {
 
 export function computeRealizedSurplus(trades: Trade[]): number {
   return trades.reduce((sum, t) => sum + t.totalSurplus, 0);
+}
+
+export function tradesForRound(trades: Trade[], round: number): Trade[] {
+  return trades.filter((t) => t.round === round);
 }

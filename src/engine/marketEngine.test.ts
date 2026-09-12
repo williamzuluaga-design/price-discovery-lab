@@ -10,6 +10,7 @@ import {
   computeHigh,
   computeLow,
   computeRealizedSurplus,
+  tradesForRound,
 } from './marketEngine';
 import type { Buyer, Seller, Trade } from '../types/market';
 
@@ -49,6 +50,33 @@ describe('validateTrade', () => {
   });
 });
 
+describe('validateTrade — trader availability', () => {
+  it('rejects a buyer who already traded this round', () => {
+    const r = validateTrade(buyer, seller, 26500, ['B01'], []);
+    expect(r.valid).toBe(false);
+    expect(r.reason).toContain('B01');
+    expect(r.reason).toContain('ya negoció');
+  });
+
+  it('rejects a seller who already traded this round', () => {
+    const r = validateTrade(buyer, seller, 26500, [], ['S01']);
+    expect(r.valid).toBe(false);
+    expect(r.reason).toContain('S01');
+    expect(r.reason).toContain('ya negoció');
+  });
+
+  it('accepts a buyer who has not traded', () => {
+    const r = validateTrade(buyer, seller, 26500, ['B02'], ['S02']);
+    expect(r.valid).toBe(true);
+  });
+
+  it('rejects when both buyer and seller already traded', () => {
+    const r = validateTrade(buyer, seller, 26500, ['B01'], ['S01']);
+    expect(r.valid).toBe(false);
+    expect(r.reason).toContain('B01');
+  });
+});
+
 describe('surplus functions', () => {
   it('buyerSurplus = buyerValue - price', () => {
     expect(buyerSurplus(30000, 26500)).toBe(3500);
@@ -70,9 +98,11 @@ describe('surplus functions', () => {
 });
 
 describe('executeTrade', () => {
-  it('produces a complete Trade object', () => {
-    const t = executeTrade(buyer, seller, 26500, 1);
+  it('produces a complete Trade object with sessionId and round', () => {
+    const t = executeTrade(buyer, seller, 26500, 1, 'sess-123', 3);
     expect(t.n).toBe(1);
+    expect(t.sessionId).toBe('sess-123');
+    expect(t.round).toBe(3);
     expect(t.buyerId).toBe('B01');
     expect(t.sellerId).toBe('S01');
     expect(t.price).toBe(26500);
@@ -87,9 +117,9 @@ describe('executeTrade', () => {
 
 describe('market stats', () => {
   const trades: Trade[] = [
-    { n: 1, timestamp: '10:00', buyerId: 'B1', sellerId: 'S1', price: 26000, buyerValue: 30000, sellerValue: 23000, buyerSurplus: 4000, sellerSurplus: 3000, totalSurplus: 7000 },
-    { n: 2, timestamp: '10:01', buyerId: 'B2', sellerId: 'S2', price: 27000, buyerValue: 29000, sellerValue: 24000, buyerSurplus: 2000, sellerSurplus: 3000, totalSurplus: 5000 },
-    { n: 3, timestamp: '10:02', buyerId: 'B3', sellerId: 'S3', price: 26500, buyerValue: 28000, sellerValue: 25000, buyerSurplus: 1500, sellerSurplus: 1500, totalSurplus: 3000 },
+    { n: 1, sessionId: 's1', round: 1, timestamp: '10:00', buyerId: 'B1', sellerId: 'S1', price: 26000, buyerValue: 30000, sellerValue: 23000, buyerSurplus: 4000, sellerSurplus: 3000, totalSurplus: 7000 },
+    { n: 2, sessionId: 's1', round: 1, timestamp: '10:01', buyerId: 'B2', sellerId: 'S2', price: 27000, buyerValue: 29000, sellerValue: 24000, buyerSurplus: 2000, sellerSurplus: 3000, totalSurplus: 5000 },
+    { n: 3, sessionId: 's1', round: 2, timestamp: '10:02', buyerId: 'B3', sellerId: 'S3', price: 26500, buyerValue: 28000, sellerValue: 25000, buyerSurplus: 1500, sellerSurplus: 1500, totalSurplus: 3000 },
   ];
 
   it('computeLastPrice returns last trade price', () => {
@@ -122,5 +152,11 @@ describe('market stats', () => {
 
   it('computeRealizedSurplus is 0 for empty', () => {
     expect(computeRealizedSurplus([])).toBe(0);
+  });
+
+  it('tradesForRound filters by round number', () => {
+    expect(tradesForRound(trades, 1)).toHaveLength(2);
+    expect(tradesForRound(trades, 2)).toHaveLength(1);
+    expect(tradesForRound(trades, 3)).toHaveLength(0);
   });
 });

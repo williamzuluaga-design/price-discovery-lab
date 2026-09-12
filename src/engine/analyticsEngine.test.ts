@@ -5,10 +5,19 @@ import {
   competitivePriceRange,
   marketEfficiency,
   buildRevealData,
+  buildCurrentRoundRevealData,
   exportTradesToCSV,
 } from './analyticsEngine';
 import { DEFAULT_BUYERS, DEFAULT_SELLERS } from '../types/market';
 import type { Buyer, Seller, Trade } from '../types/market';
+
+function makeTrade(n: number, round: number, price: number, bv: number, sv: number): Trade {
+  return {
+    n, sessionId: 'sess-1', round, timestamp: '10:00', buyerId: 'B1', sellerId: 'S1',
+    price, buyerValue: bv, sellerValue: sv,
+    buyerSurplus: bv - price, sellerSurplus: price - sv, totalSurplus: bv - sv,
+  };
+}
 
 describe('efficientQuantity', () => {
   it('returns 6 for default data (B06=27000 >= S06=27000, B07=26500 < S07=28500)', () => {
@@ -49,10 +58,6 @@ describe('competitivePriceRange', () => {
     expect(range).not.toBeNull();
     if (range) {
       expect(range.low).toBeLessThanOrEqual(range.high);
-      // Marginal buyer (6th) = 27000, marginal seller (6th) = 27000
-      // Next buyer (7th) = 26500, next seller (7th) = 28500
-      // low = max(27000, 26500) = 27000
-      // high = min(27000, 28500) = 27000
       expect(range.low).toBe(27000);
       expect(range.high).toBe(27000);
     }
@@ -73,27 +78,16 @@ describe('marketEfficiency', () => {
   });
 
   it('returns 100 when all efficient surplus is realized', () => {
-    // Single buyer/seller with one trade at the efficient level
     const buyers: Buyer[] = [{ id: 'B1', value: 30000 }];
     const sellers: Seller[] = [{ id: 'S1', value: 23000 }];
-    const trades: Trade[] = [{
-      n: 1, timestamp: '10:00', buyerId: 'B1', sellerId: 'S1',
-      price: 26500, buyerValue: 30000, sellerValue: 23000,
-      buyerSurplus: 3500, sellerSurplus: 3500, totalSurplus: 7000,
-    }];
+    const trades: Trade[] = [makeTrade(1, 1, 26500, 30000, 23000)];
     expect(marketEfficiency(buyers, sellers, trades)).toBeCloseTo(100);
   });
 
   it('returns partial efficiency for partial realization', () => {
     const buyers: Buyer[] = [{ id: 'B1', value: 30000 }, { id: 'B2', value: 28000 }];
     const sellers: Seller[] = [{ id: 'S1', value: 23000 }, { id: 'S2', value: 25000 }];
-    // max surplus = 7000 + 3000 = 10000
-    // one trade with surplus 7000 -> 70%
-    const trades: Trade[] = [{
-      n: 1, timestamp: '10:00', buyerId: 'B1', sellerId: 'S1',
-      price: 26500, buyerValue: 30000, sellerValue: 23000,
-      buyerSurplus: 3500, sellerSurplus: 3500, totalSurplus: 7000,
-    }];
+    const trades: Trade[] = [makeTrade(1, 1, 26500, 30000, 23000)];
     expect(marketEfficiency(buyers, sellers, trades)).toBeCloseTo(70, 0);
   });
 });
@@ -107,30 +101,57 @@ describe('buildRevealData', () => {
     expect(reveal.marketEfficiency).toBeCloseTo(0);
     expect(reveal.demandSchedule).toHaveLength(8);
     expect(reveal.supplySchedule).toHaveLength(8);
-    // Demand sorted descending
     expect(reveal.demandSchedule[0].value).toBe(30000);
     expect(reveal.demandSchedule[7].value).toBe(25000);
-    // Supply sorted ascending
     expect(reveal.supplySchedule[0].value).toBe(23000);
     expect(reveal.supplySchedule[7].value).toBe(30000);
   });
 });
 
+describe('buildCurrentRoundRevealData', () => {
+  it('only counts trades from the current round', () => {
+    const trades: Trade[] = [
+      makeTrade(1, 1, 26500, 30000, 23000),
+      makeTrade(2, 2, 26000, 29000, 24000),
+    ];
+    const reveal = buildCurrentRoundRevealData(DEFAULT_BUYERS, DEFAULT_SELLERS, trades, 2);
+    // Only round 2 trade counts: surplus = 29000 - 24000 = 5000
+    expect(reveal.realizedSurplus).toBe(5000);
+    expect(reveal.marketEfficiency).toBeCloseTo((5000 / 21200) * 100, 0);
+  });
+
+  it('returns 0 realized surplus when no trades in current round', () => {
+    const trades: Trade[] = [makeTrade(1, 1, 26500, 30000, 23000)];
+    const reveal = buildCurrentRoundRevealData(DEFAULT_BUYERS, DEFAULT_SELLERS, trades, 2);
+    expect(reveal.realizedSurplus).toBe(0);
+    expect(reveal.marketEfficiency).toBeCloseTo(0);
+  });
+});
+
 describe('exportTradesToCSV', () => {
-  it('produces a valid CSV with correct headers', () => {
-    const trades: Trade[] = [{
-      n: 1, timestamp: '10:00:00', buyerId: 'B01', sellerId: 'S01',
-      price: 26500, buyerValue: 30000, sellerValue: 23000,
-      buyerSurplus: 3500, sellerSurplus: 3500, totalSurplus: 7000,
-    }];
-    const csv = exportTradesToCSV('sess-1', 1, trades);
+  it('produces a valid CSV with correct headers using stored sessionId and round', () => {
+    const trades: Trade[] = [makeTrade(1, 3, 26500, 30000, 23000)];
+    const csv = exportTradesToCSV(trades);
     const lines = csv.split('\n');
     expect(lines[0]).toBe('session_id,round,timestamp,buyer_id,seller_id,buyer_value,seller_value,trade_price,buyer_surplus,seller_surplus,total_surplus');
-    expect(lines[1]).toBe('sess-1,1,10:00:00,B01,S01,30000,23000,26500,3500,3500,7000');
+    expect(lines[1]).toBe('sess-1,3,10:00,B1,S1,30000,23000,26500,3500,3500,7000');
   });
 
   it('produces only header for empty trades', () => {
-    const csv = exportTradesToCSV('sess-1', 1, []);
+    const csv = exportTradesToCSV([]);
     expect(csv).toBe('session_id,round,timestamp,buyer_id,seller_id,buyer_value,seller_value,trade_price,buyer_surplus,seller_surplus,total_surplus');
+  });
+
+  it('uses per-trade round numbers, not a single session-level round', () => {
+    const trades: Trade[] = [
+      makeTrade(1, 1, 26000, 30000, 23000),
+      makeTrade(2, 2, 27000, 29000, 24000),
+      makeTrade(3, 3, 26500, 28000, 25000),
+    ];
+    const csv = exportTradesToCSV(trades);
+    const lines = csv.split('\n');
+    expect(lines[1]).toContain(',1,');
+    expect(lines[2]).toContain(',2,');
+    expect(lines[3]).toContain(',3,');
   });
 });

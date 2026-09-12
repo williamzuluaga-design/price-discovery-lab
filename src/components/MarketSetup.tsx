@@ -8,7 +8,7 @@ type Market = ReturnType<typeof useMarketSession>;
 const ROUND_MODES: RoundMode[] = ['Dark Market', 'Public Tape', 'Order Book', 'Information Shock'];
 
 export default function MarketSetup({ market, onStart }: { market: Market; onStart: () => void }) {
-  const { session, configure, start, reset, newSession } = market;
+  const { session, configure, start, reset, newSession, nextRound } = market;
   const [roundSeconds, setRoundSeconds] = useState(session.roundSeconds);
   const [mode, setMode] = useState<RoundMode>(session.mode);
 
@@ -38,7 +38,7 @@ export default function MarketSetup({ market, onStart }: { market: Market; onSta
       </div>
 
       <div className="card mt-16">
-        <h2>Configuración de la sesión</h2>
+        <h2>Configuración de la sesión — Ronda {session.round}</h2>
         <div className="row" style={{ gap: '16px' }}>
           <label>
             Duración por ronda (seg)
@@ -62,15 +62,18 @@ export default function MarketSetup({ market, onStart }: { market: Market; onSta
             className="btn btn-cta"
             onClick={() => { configure(roundSeconds, mode); start(); onStart(); }}
           >
-            START MARKET
+            START ROUND {session.round}
           </button>
-          <button className="btn btn-secondary" onClick={reset}>Reset</button>
+          <button className="btn btn-secondary" onClick={nextRound}>Next Round</button>
+          <button className="btn btn-secondary" onClick={reset}>Reset Round</button>
           <button className="btn btn-danger" onClick={newSession}>Nueva sesión</button>
         </div>
         <hr />
         <div className="notice">
           <b>Regla de validación:</b> una transacción es válida solo si{' '}
           <span className="ticker">seller value ≤ trade price ≤ buyer value</span>.
+          <br />
+          <b>Una unidad por trader:</b> cada comprador y vendedor puede negociar una sola vez por ronda.
         </div>
       </div>
 
@@ -79,13 +82,14 @@ export default function MarketSetup({ market, onStart }: { market: Market; onSta
           <h2>Compradores <span className="view-badge view-professor" style={{ marginLeft: 8 }}>Private</span></h2>
           <table>
             <thead>
-              <tr><th>ID</th><th>Valoración máxima</th></tr>
+              <tr><th>ID</th><th>Valoración máxima</th><th>Estado</th></tr>
             </thead>
             <tbody>
               {session.buyers.map((b) => (
                 <tr key={b.id}>
                   <td className="ticker">{b.id}</td>
                   <td className="ticker">{fmtCOP(b.value)}</td>
+                  <td>{session.tradedBuyerIds.includes(b.id) ? <span style={{ color: 'var(--bad)' }}>Negoció</span> : <span style={{ color: 'var(--accent)' }}>Disponible</span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -95,13 +99,14 @@ export default function MarketSetup({ market, onStart }: { market: Market; onSta
           <h2>Vendedores <span className="view-badge view-professor" style={{ marginLeft: 8 }}>Private</span></h2>
           <table>
             <thead>
-              <tr><th>ID</th><th>Precio mínimo</th></tr>
+              <tr><th>ID</th><th>Precio mínimo</th><th>Estado</th></tr>
             </thead>
             <tbody>
               {session.sellers.map((s) => (
                 <tr key={s.id}>
                   <td className="ticker">{s.id}</td>
                   <td className="ticker">{fmtCOP(s.value)}</td>
+                  <td>{session.tradedSellerIds.includes(s.id) ? <span style={{ color: 'var(--bad)' }}>Negoció</span> : <span style={{ color: 'var(--accent)' }}>Disponible</span>}</td>
                 </tr>
               ))}
             </tbody>

@@ -10,6 +10,8 @@ export interface Seller {
 
 export interface Trade {
   n: number;
+  sessionId: string;
+  round: number;
   timestamp: string;
   buyerId: string;
   sellerId: string;
@@ -42,6 +44,8 @@ export interface MarketSession {
   buyers: Buyer[];
   sellers: Seller[];
   trades: Trade[];
+  tradedBuyerIds: string[];
+  tradedSellerIds: string[];
   newsHistory: { event: NewsEventType; timestamp: string }[];
   createdAt: string;
 }

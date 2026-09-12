@@ -19,6 +19,8 @@ export function createSession(
     buyers: DEFAULT_BUYERS.map((b) => ({ ...b })),
     sellers: DEFAULT_SELLERS.map((s) => ({ ...s })),
     trades: [],
+    tradedBuyerIds: [],
+    tradedSellerIds: [],
     newsHistory: [],
     createdAt: new Date().toISOString(),
   };
@@ -29,6 +31,8 @@ export function startRound(session: MarketSession): MarketSession {
     ...session,
     phase: 'open',
     remainingSeconds: session.roundSeconds,
+    tradedBuyerIds: [],
+    tradedSellerIds: [],
   };
 }
 
@@ -47,15 +51,24 @@ export function tick(session: MarketSession): MarketSession {
   return { ...session, remainingSeconds: remaining };
 }
 
+export function advanceRound(session: MarketSession): MarketSession {
+  return {
+    ...session,
+    round: session.round + 1,
+    phase: 'setup',
+    remainingSeconds: session.roundSeconds,
+    tradedBuyerIds: [],
+    tradedSellerIds: [],
+  };
+}
+
 export function resetRound(session: MarketSession): MarketSession {
   return {
     ...session,
     phase: 'setup',
     remainingSeconds: session.roundSeconds,
-    trades: [],
-    newsHistory: [],
-    buyers: DEFAULT_BUYERS.map((b) => ({ ...b })),
-    sellers: DEFAULT_SELLERS.map((s) => ({ ...s })),
+    tradedBuyerIds: [],
+    tradedSellerIds: [],
   };
 }
 

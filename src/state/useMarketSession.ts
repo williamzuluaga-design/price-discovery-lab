@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MarketSession, NewsEventType, RoundMode, Trade } from '../types/market';
-import { createSession, startRound, pauseRound, tick, resetRound, applyNewsShock } from '../engine/gameEngine';
+import { createSession, startRound, pauseRound, tick, advanceRound, resetRound, applyNewsShock } from '../engine/gameEngine';
 import { validateTrade, executeTrade } from '../engine/marketEngine';
 import { LocalRepository } from '../data/localRepository';
 import type { MarketRepository } from '../data/repository';
@@ -56,6 +56,10 @@ export function useMarketSession() {
     setSession((prev) => pauseRound(prev));
   }, []);
 
+  const nextRound = useCallback(() => {
+    setSession((prev) => advanceRound(prev));
+  }, []);
+
   const reset = useCallback(() => {
     setSession((prev) => resetRound(prev));
   }, []);
@@ -70,7 +74,7 @@ export function useMarketSession() {
           result = { success: false, message: 'Comprador o vendedor no encontrado' };
           return prev;
         }
-        const validation = validateTrade(buyer, seller, price);
+        const validation = validateTrade(buyer, seller, price, prev.tradedBuyerIds, prev.tradedSellerIds);
         if (!validation.valid) {
           result = {
             success: false,
@@ -78,13 +82,18 @@ export function useMarketSession() {
           };
           return prev;
         }
-        const trade = executeTrade(buyer, seller, price, prev.trades.length + 1);
+        const trade = executeTrade(buyer, seller, price, prev.trades.length + 1, prev.sessionId, prev.round);
         result = {
           success: true,
           message: `Trade ejecutado: comprador surplus COP ${trade.buyerSurplus.toLocaleString('es-CO')}, vendedor surplus COP ${trade.sellerSurplus.toLocaleString('es-CO')}`,
           trade,
         };
-        return { ...prev, trades: [...prev.trades, trade] };
+        return {
+          ...prev,
+          trades: [...prev.trades, trade],
+          tradedBuyerIds: [...prev.tradedBuyerIds, buyer.id],
+          tradedSellerIds: [...prev.tradedSellerIds, seller.id],
+        };
       });
       return result;
     },
@@ -107,6 +116,7 @@ export function useMarketSession() {
     configure,
     start,
     pause,
+    nextRound,
     reset,
     registerTrade,
     releaseNews,
