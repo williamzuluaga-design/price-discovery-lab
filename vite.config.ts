@@ -1,3 +1,3 @@
 export default defineConfig({
-  base: '/',
+  base: '/price-discovery-lab/',
   plugins: [react()],
