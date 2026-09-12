@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Price Discovery Lab — Mockup V1</title>
+<style>
+:root{
+  --bg:#0b0f14;--panel:#121923;--panel2:#17212e;--border:#253449;
+  --text:#e8eef6;--muted:#91a0b3;--accent:#27d17f;--warn:#ffcc66;--bad:#ff6b6b;--blue:#55a7ff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{height:64px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:#0e141c;position:sticky;top:0;z-index:5}
+.brand{display:flex;gap:12px;align-items:center;font-weight:800;letter-spacing:.5px}
+.badge{font-size:12px;border:1px solid var(--border);padding:4px 8px;border-radius:999px;color:var(--muted)}
+.wrap{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 64px)}
+nav{border-right:1px solid var(--border);padding:16px;background:#0d131a}
+nav button{width:100%;text-align:left;background:transparent;color:var(--muted);border:0;padding:12px;border-radius:8px;margin:4px 0;cursor:pointer;font-weight:700}
+nav button.active,nav button:hover{background:var(--panel2);color:var(--text)}
+main{padding:22px;max-width:1400px;width:100%;margin:0 auto}
+.view{display:none}.view.active{display:block}
+.grid{display:grid;gap:16px}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:1.3fr .7fr}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px}
+h1,h2,h3{margin:0 0 12px}h1{font-size:24px}h2{font-size:18px}h3{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.kpi{font-size:32px;font-weight:800}.sub{color:var(--muted);font-size:13px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+input,select{background:#0d141d;border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px}
+button.cta{background:var(--accent);border:0;color:#06130c;padding:10px 14px;border-radius:8px;font-weight:800;cursor:pointer}
+button.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border);padding:10px 14px;border-radius:8px;font-weight:700;cursor:pointer}
+button.danger{background:#401c22;color:#ffc5ca;border:1px solid #6f2a35;padding:10px 14px;border-radius:8px;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:9px;border-bottom:1px solid var(--border);text-align:left}th{color:var(--muted);font-size:12px;text-transform:uppercase}
+.price-up{color:var(--accent)}.price-down{color:var(--bad)}
+.ticker{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.notice{padding:14px;border-radius:10px;background:#182233;border:1px solid #2f4766}
+.news{padding:16px;border-left:4px solid var(--warn);background:#2a2415}
+.hidden{display:none}
+hr{border:0;border-top:1px solid var(--border);margin:16px 0}
+canvas{width:100%;height:260px;background:#0d141d;border:1px solid var(--border);border-radius:8px}
+.pill{padding:4px 8px;border-radius:999px;background:#1a2a22;color:#8bf0ba;font-size:12px;font-weight:700}
+footer{color:var(--muted);font-size:12px;padding:24px 0}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}nav{display:flex;overflow:auto;border-right:0;border-bottom:1px solid var(--border)}nav button{min-width:140px}.g3,.g2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">PRICE DISCOVERY LAB <span class="badge">Mockup V1 · local</span></div>
+  <div class="row"><span class="pill" id="marketStatus">MARKET CLOSED</span><span class="ticker" id="clock">03:00</span></div>
+</header>
+
+<div class="wrap">
+<nav>
+  <button data-view="setup" class="active">1. Market Setup</button>
+  <button data-view="floor">2. Trading Floor</button>
+  <button data-view="news">3. Breaking News</button>
+  <button data-view="reveal">4. Market Reveal</button>
+</nav>
+
+<main>
+<section id="setup" class="view active">
+  <h1>Andina Tech S.A. <span class="sub">ANDT</span></h1>
+  <div class="grid g3">
+    <div class="card"><h3>Asset</h3><div class="kpi">ANDT</div><div class="sub">Acción ficticia para simulación educativa</div></div>
+    <div class="card"><h3>Buyers</h3><div class="kpi" id="buyersCount">8</div><div class="sub">valoraciones privadas</div></div>
+    <div class="card"><h3>Sellers</h3><div class="kpi" id="sellersCount">8</div><div class="sub">precios de reserva</div></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>Configuración de la sesión</h2>
+    <div class="row">
+      <label>Duración por ronda <input id="roundSeconds" type="number" value="180" min="30" step="30"> seg</label>
+      <label>Ronda <select id="roundMode">
+        <option>Dark Market</option><option selected>Public Tape</option><option>Order Book</option><option>Information Shock</option>
+      </select></label>
+      <button class="cta" id="startBtn">START MARKET</button>
+      <button class="secondary" id="resetBtn">Reset</button>
+    </div>
+    <hr>
+    <div class="notice"><b>Regla de validación:</b> una transacción es válida solo si <span class="ticker">seller value ≤ trade price ≤ buyer value</span>.</div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card">
+      <h2>Compradores</h2>
+      <table><thead><tr><th>ID</th><th>Valoración máxima</th></tr></thead><tbody id="buyersTable"></tbody></table>
+    </div>
+    <div class="card">
+      <h2>Vendedores</h2>
+      <table><thead><tr><th>ID</th><th>Precio mínimo</th></tr></thead><tbody id="sellersTable"></tbody></table>
+    </div>
+  </div>
+</section>
+
+<section id="floor" class="view">
+  <div class="row" style="justify-content:space-between">
+    <div><h1>Trading Floor — ANDT</h1><div class="sub" id="modeLabel">Public Tape</div></div>
+    <div class="row">
+      <button class="secondary" id="pauseBtn">Pause</button>
+      <button class="cta" id="openTicket">REGISTER TRADE</button>
+      <button class="secondary" id="exportBtn">Export CSV</button>
+    </div>
+  </div>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card"><h3>Last Price</h3><div class="kpi ticker" id="lastPrice">—</div></div>
+    <div class="card"><h3>VWAP</h3><div class="kpi ticker" id="vwap">—</div></div>
+    <div class="card"><h3>Volume</h3><div class="kpi ticker" id="volume">0</div></div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card">
+      <h2>Price path</h2>
+      <canvas id="chart" width="900" height="300"></canvas>
+    </div>
+    <div class="card">
+      <h2>Market stats</h2>
+      <table>
+        <tr><th>High</th><td id="high">—</td></tr>
+        <tr><th>Low</th><td id="low">—</td></tr>
+        <tr><th>Trades</th><td id="tradeCount">0</td></tr>
+        <tr><th>Total surplus</th><td id="surplus">COP 0</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>Market Tape</h2>
+    <table><thead><tr><th>#</th><th>Hora</th><th>Buyer</th><th>Seller</th><th>Precio</th><th>Surplus</th></tr></thead><tbody id="tape"></tbody></table>
+  </div>
+
+  <div id="ticket" class="card hidden" style="position:fixed;right:24px;bottom:24px;width:min(420px,calc(100vw - 48px));z-index:10;box-shadow:0 20px 50px #0008">
+    <div class="row" style="justify-content:space-between"><h2>Trade Ticket</h2><button class="secondary" id="closeTicket">✕</button></div>
+    <label>Buyer <select id="buyerSelect"></select></label><br><br>
+    <label>Seller <select id="sellerSelect"></select></label><br><br>
+    <label>Precio acordado COP <input id="tradePrice" type="number" value="27000" step="50"></label><br><br>
+    <button class="cta" id="validateBtn">VALIDATE & EXECUTE</button>
+    <div id="ticketMsg" style="margin-top:12px"></div>
+  </div>
+</section>
+
+<section id="news" class="view">
+  <h1>Breaking News Console</h1>
+  <div class="card">
+    <h2>Seleccionar evento</h2>
+    <select id="newsEvent">
+      <option value="ratecut">BanRep reduce inesperadamente 50 pb la tasa de política monetaria</option>
+      <option value="earnings">ANDT reporta EBITDA 12% superior al consenso</option>
+      <option value="probe">Autoridad anuncia investigación regulatoria sobre ANDT</option>
+    </select>
+    <button class="cta" id="releaseNews">RELEASE NEWS</button>
+  </div>
+  <div id="newsBox" class="news hidden" style="margin-top:16px"></div>
+  <div class="card" style="margin-top:16px">
+    <h2>Impacto pedagógico</h2>
+    <p class="sub">En V1 el shock ajusta las valoraciones privadas de forma parametrizada. En V2 puede enviarse información diferenciada por jugador.</p>
+  </div>
+</section>
+
+<section id="reveal" class="view">
+  <h1>Market Reveal</h1>
+  <div class="grid g3">
+    <div class="card"><h3>Efficient quantity</h3><div class="kpi" id="eqQty">—</div></div>
+    <div class="card"><h3>Competitive range</h3><div class="kpi ticker" id="eqRange">—</div></div>
+    <div class="card"><h3>Market efficiency</h3><div class="kpi" id="efficiency">—</div></div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><h2>Demand — valores comprador</h2><table><tbody id="demandReveal"></tbody></table></div>
+    <div class="card"><h2>Supply — costos vendedor</h2><table><tbody id="supplyReveal"></tbody></table></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h2>Debrief</h2>
+    <p><b>Pregunta central:</b> Si ningún participante conocía toda la distribución de valores y costos, ¿quién determinó el precio observado?</p>
+    <p class="sub">Compare el precio de cierre, la trayectoria de transacciones, el rango competitivo y la eficiencia realizada.</p>
+  </div>
+</section>
+
+<footer>
+Mockup local para validación docente. No utiliza backend, login, servidor ni datos reales de mercado.
+</footer>
+</main>
+</div>
+
+<script>
+const fmt=n=>n==null?'—':'COP '+Math.round(n).toLocaleString('es-CO');
+let buyers=[
+{id:'B01',v:30000},{id:'B02',v:29500},{id:'B03',v:29000},{id:'B04',v:28400},
+{id:'B05',v:27800},{id:'B06',v:27000},{id:'B07',v:26500},{id:'B08',v:25000}
+];
+let sellers=[
+{id:'S01',v:23000},{id:'S02',v:24000},{id:'S03',v:24800},{id:'S04',v:25500},
+{id:'S05',v:26200},{id:'S06',v:27000},{id:'S07',v:28500},{id:'S08',v:30000}
+];
+let trades=[], timer=null, remaining=180, running=false, roundStart=null;
+
+function renderTables(){
+  buyersTable.innerHTML=buyers.map(x=>`<tr><td>${x.id}</td><td>${fmt(x.v)}</td></tr>`).join('');
+  sellersTable.innerHTML=sellers.map(x=>`<tr><td>${x.id}</td><td>${fmt(x.v)}</td></tr>`).join('');
+  buyerSelect.innerHTML=buyers.map(x=>`<option value="${x.id}">${x.id}</option>`).join('');
+  sellerSelect.innerHTML=sellers.map(x=>`<option value="${x.id}">${x.id}</option>`).join('');
+  buyersCount.textContent=buyers.length;sellersCount.textContent=sellers.length;
+  demandReveal.innerHTML=[...buyers].sort((a,b)=>b.v-a.v).map((x,i)=>`<tr><th>Q${i+1}</th><td>${fmt(x.v)}</td></tr>`).join('');
+  supplyReveal.innerHTML=[...sellers].sort((a,b)=>a.v-b.v).map((x,i)=>`<tr><th>Q${i+1}</th><td>${fmt(x.v)}</td></tr>`).join('');
+}
+function switchView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===id));
+  document.getElementById(id).classList.add('active');
+  if(id==='reveal') calcReveal();
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>switchView(b.dataset.view));
+
+function tick(){
+  if(!running)return;
+  remaining--;
+  clock.textContent=`${String(Math.floor(remaining/60)).padStart(2,'0')}:${String(remaining%60).padStart(2,'0')}`;
+  if(remaining<=0){running=false;marketStatus.textContent='MARKET CLOSED';clearInterval(timer)}
+}
+startBtn.onclick=()=>{
+  remaining=+roundSeconds.value||180; running=true; roundStart=Date.now();
+  marketStatus.textContent='MARKET OPEN'; modeLabel.textContent=roundMode.value;
+  clearInterval(timer); timer=setInterval(tick,1000); switchView('floor');
+}
+pauseBtn.onclick=()=>{
+  running=!running; marketStatus.textContent=running?'MARKET OPEN':'PAUSED';
+}
+resetBtn.onclick=()=>{trades=[];updateMarket();remaining=+roundSeconds.value||180;clock.textContent='03:00';marketStatus.textContent='MARKET CLOSED';}
+
+openTicket.onclick=()=>ticket.classList.remove('hidden');
+closeTicket.onclick=()=>ticket.classList.add('hidden');
+
+validateBtn.onclick=()=>{
+  const b=buyers.find(x=>x.id===buyerSelect.value), s=sellers.find(x=>x.id===sellerSelect.value), p=+tradePrice.value;
+  if(!b||!s||!Number.isFinite(p)){ticketMsg.innerHTML='<span class="price-down">Datos inválidos</span>';return}
+  if(p<s.v || p>b.v){
+    ticketMsg.innerHTML=`<span class="price-down"><b>TRADE REJECTED</b></span><br><span class="sub">Debe cumplirse ${fmt(s.v)} ≤ precio ≤ ${fmt(b.v)}</span>`;
+    return;
+  }
+  const buyerSurplus=b.v-p, sellerSurplus=p-s.v, totalSurplus=b.v-s.v;
+  trades.push({n:trades.length+1,time:new Date().toLocaleTimeString('es-CO',{hour12:false}),buyer:b.id,seller:s.id,price:p,buyerValue:b.v,sellerValue:s.v,buyerSurplus,sellerSurplus,totalSurplus});
+  ticketMsg.innerHTML=`<span class="price-up"><b>✓ TRADE EXECUTED</b></span><br><span class="sub">Buyer surplus ${fmt(buyerSurplus)} · Seller surplus ${fmt(sellerSurplus)}</span>`;
+  updateMarket();
+};
+
+function updateMarket(){
+  const prices=trades.map(t=>t.price);
+  const last=prices.length?prices.at(-1):null;
+  lastPrice.textContent=fmt(last); volume.textContent=trades.length; tradeCount.textContent=trades.length;
+  vwap.textContent=fmt(prices.length?prices.reduce((a,b)=>a+b,0)/prices.length:null);
+  high.textContent=fmt(prices.length?Math.max(...prices):null); low.textContent=fmt(prices.length?Math.min(...prices):null);
+  surplus.textContent=fmt(trades.reduce((a,t)=>a+t.totalSurplus,0));
+  tape.innerHTML=[...trades].reverse().map(t=>`<tr><td>${t.n}</td><td class="ticker">${t.time}</td><td>${t.buyer}</td><td>${t.seller}</td><td class="ticker">${fmt(t.price)}</td><td>${fmt(t.totalSurplus)}</td></tr>`).join('');
+  drawChart();
+}
+function drawChart(){
+  const c=chart,ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
+  ctx.strokeStyle='#253449';ctx.lineWidth=1;
+  for(let y=30;y<c.height;y+=50){ctx.beginPath();ctx.moveTo(40,y);ctx.lineTo(c.width-20,y);ctx.stroke()}
+  if(trades.length<1)return;
+  const ps=trades.map(t=>t.price), min=Math.min(...ps)-500,max=Math.max(...ps)+500;
+  const x=i=>50+(i*(c.width-90)/Math.max(1,ps.length-1));
+  const y=p=>20+(max-p)*(c.height-50)/(max-min||1);
+  ctx.strokeStyle='#27d17f';ctx.lineWidth=3;ctx.beginPath();
+  ps.forEach((p,i)=>i?ctx.lineTo(x(i),y(p)):ctx.moveTo(x(i),y(p)));ctx.stroke();
+  ctx.fillStyle='#e8eef6';ps.forEach((p,i)=>{ctx.beginPath();ctx.arc(x(i),y(p),4,0,Math.PI*2);ctx.fill()});
+}
+
+releaseNews.onclick=()=>{
+  const e=newsEvent.value;
+  let title='',deltaB=0,deltaS=0;
+  if(e==='ratecut'){title='BanRep reduce inesperadamente 50 pb la tasa de política monetaria';deltaB=.06;deltaS=.04}
+  if(e==='earnings'){title='ANDT reporta EBITDA 12% superior al consenso';deltaB=.08;deltaS=.06}
+  if(e==='probe'){title='Autoridad anuncia investigación regulatoria sobre ANDT';deltaB=-.08;deltaS=-.06}
+  buyers=buyers.map(x=>({...x,v:Math.round(x.v*(1+deltaB)/50)*50}));
+  sellers=sellers.map(x=>({...x,v:Math.round(x.v*(1+deltaS)/50)*50}));
+  newsBox.classList.remove('hidden');
+  newsBox.innerHTML=`<b>BREAKING NEWS</b><h2 style="margin-top:8px">${title}</h2><div class="sub">Shock aplicado a las valoraciones privadas para la siguiente ronda.</div>`;
+  renderTables();
+};
+
+function calcReveal(){
+  const B=[...buyers].sort((a,b)=>b.v-a.v),S=[...sellers].sort((a,b)=>a.v-b.v);
+  let q=0,maxSurplus=0;
+  for(let i=0;i<Math.min(B.length,S.length);i++){
+    if(B[i].v>=S[i].v){q=i+1;maxSurplus+=B[i].v-S[i].v}else break;
+  }
+  eqQty.textContent=q;
+  let lo=null,hi=null;
+  if(q>0){
+    const marginalBuyer=B[q-1].v, marginalSeller=S[q-1].v;
+    const nextBuyer=B[q]?.v ?? marginalBuyer, nextSeller=S[q]?.v ?? marginalSeller;
+    lo=Math.max(marginalSeller,nextBuyer); hi=Math.min(marginalBuyer,nextSeller);
+    if(lo>hi){const m=(marginalBuyer+marginalSeller)/2;lo=hi=m}
+  }
+  eqRange.textContent=(lo!=null)?`${fmt(lo)} — ${fmt(hi)}`:'—';
+  const realized=trades.reduce((a,t)=>a+t.totalSurplus,0);
+  efficiency.textContent=maxSurplus?Math.min(999,realized/maxSurplus*100).toFixed(1)+'%':'—';
+}
+exportBtn.onclick=()=>{
+  const cols=['n','time','buyer','seller','price','buyerValue','sellerValue','buyerSurplus','sellerSurplus','totalSurplus'];
+  const csv=[cols.join(','),...trades.map(t=>cols.map(k=>t[k]).join(','))].join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='price_discovery_trades.csv';a.click();URL.revokeObjectURL(url);
+};
+
+renderTables();updateMarket();
+</script>
+</body>
+</html>
